@@ -1,11 +1,15 @@
-import React, {  useEffect, useRef, useState } from 'react'
+import React, {  useContext, useEffect, useRef, useState } from 'react'
 import uniqid from 'uniqid'
 import Quill from 'quill'
 import { assets } from '../../assets/assets'
+import { AppContext } from '../../context/AppContext'
+import { toast } from 'react-toastify'
+import axios from 'axios'
 
 const AddCourse = () => {
 
 
+  const {backendUrl, getToken} = useContext(AppContext)
   const quillRef = useRef(null)
   const editorRef = useRef(null)
 
@@ -18,7 +22,7 @@ const AddCourse = () => {
   const [currentChapterId,setCurrentChapterId] = useState(null)
 
   const [lectureDetails,setLectureDetails] = useState({
-    lecturTitle:'',
+    lectureTitle:'',
     lectureDuration:'',
     lectureUrl:'',
     isPreviewFree:false,
@@ -85,7 +89,42 @@ const AddCourse = () => {
   };
 
   const handleSubmit = async (e) => {
-        e.preventDefault()
+    try {
+      e.preventDefault()
+      if(!image){
+        toast.error('Thumbnail Not Selected')
+      }
+
+      const courseData = {
+        courseTitle,
+        courseDescription: quillRef.current.root.innerHTML,
+        coursePrice: Number(coursePrice),
+        discount: Number(discount),
+        courseContent: chapters,
+
+      }
+      const formData = new FormData()
+      formData.append('courseData', JSON.stringify(courseData))
+      formData.append('image',image)
+
+      const token = await getToken()
+      const {data} = await axios.post(backendUrl + '/api/educator/add-course', formData, {headers: {Authorization: `Bearer ${token}`}})
+
+      if(data.success){
+        toast.success(data.message)
+        setCourseTitle('')
+        setCoursePrice(0)
+        setDiscout(0)
+        setImage(null)
+        setChapters([])
+        quillRef.current.root.innerHTML = ""
+      }else{
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.message)
+    }
+        
   };
 
   useEffect(()=>{
@@ -147,7 +186,7 @@ const AddCourse = () => {
               <div className='p-4'>
                   {chapter.chapterContent.map((lecture,lectureIndex)=>(
                     <div key={lectureIndex} className='flex justify-between items-center mb-2'>
-                      <span>{lectureIndex+1} {lecture.lecturTitle}- {lecture.lectureDuration} mins - <a href={lecture.lectureUrl} target="_blank" className='text-blue-500'>Link</a> - {lecture.isPreviewFree ? 'Free Preview' : 'Paid'}</span>
+                      <span>{lectureIndex+1} {lecture.lectureTitle}- {lecture.lectureDuration} mins - <a href={lecture.lectureUrl} target="_blank" className='text-blue-500'>Link</a> - {lecture.isPreviewFree ? 'Free Preview' : 'Paid'}</span>
                       <img src={assets.cross_icon} alt="" onClick={()=>handleLecture('remove', chapter.chapterId, lectureIndex)} className='cursor-pointer' />
                     </div>
                   ))}
@@ -166,7 +205,7 @@ const AddCourse = () => {
                 
                 <div className='mb-2'>
                   <p>Lecture Title</p>
-                  <input type="text" className='mt-1 block w-full border rounded py-1 px-2' value={lectureDetails.lecturTitle} onChange={(e) => setLectureDetails({...lectureDetails, lecturTitle:e.target.value})} />
+                  <input type="text" className='mt-1 block w-full border rounded py-1 px-2' value={lectureDetails.lectureTitle} onChange={(e) => setLectureDetails({...lectureDetails, lectureTitle:e.target.value})} />
                 </div>
                 <div className='mb-2'>
                   <p>Duration (minutes)</p>
